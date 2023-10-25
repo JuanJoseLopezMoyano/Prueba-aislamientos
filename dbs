@@ -1,0 +1,57 @@
+library(tidyverse)
+library(rio)
+library(janitor)
+library(DT)
+library(knitr)
+
+censo_hoy <- import("DATA/rptCensoCorteExcel.xls", skip = 1) %>% clean_names()
+censo_hoy <- censo_hoy %>% 
+  mutate(f_ingreso = as.Date(f_ingreso, format = "%d/%m/%Y"))
+
+aislamientos <- import("DATA/AISLAMIENTOS.ods") %>% clean_names()
+aislamientos$nhc <- as.character(aislamientos$nhc)
+aislamientos <- aislamientos %>% 
+  mutate(fecha = as.Date(fecha, format = "%d/%m/%y"))
+
+covid <- import("DATA/COVID.ods") %>% clean_names()
+
+planta_covid <- import("OTROS DATOS/PLANTA COVID.ods")
+planta_covid <- planta_covid$planta_covid
+
+camas_tic <- import("OTROS DATOS/CAMAS TIC.ods")
+camas_tic <- camas_tic$camas_tic
+
+camas_uci_covid <- import("OTROS DATOS/UCI COVID.ods")
+camas_uci_covid <- camas_uci_covid$camas_uci_covid
+
+covid <- covid %>% 
+  filter(!is.na(situacion)) %>% 
+  filter(situacion != "ALTA") %>% 
+  filter(situacion != "EXITUS")
+
+
+aislamientos <- aislamientos %>% 
+  filter(!is.na(hab))
+
+
+# censo_hoy$tipo_aisla %>% as.factor() %>% levels()
+
+censo_hoy_aislados <- censo_hoy %>% 
+  filter(tipo_aisla == "Aéreo" |
+         tipo_aisla == "Contacto" |
+         tipo_aisla == "Gotitas" |
+         tipo_aisla == "Protector" |
+         tipo_aisla == "Protector - Tx")
+
+# crear variable hospital
+# covid$cama %>% str()
+covid <- covid %>% 
+  mutate(hospital = case_when(
+    unidad == "UCI" ~ "UCIA",
+    str_sub(covid$cama, 1,1) == "1" ~ "HG",
+    str_sub(covid$cama, 1,1) == "2" ~ "HMI",
+    str_sub(covid$cama, 1,1) == "3" ~ "HMI",
+    str_sub(covid$cama, 1,1) == "4" ~ "HP",
+    str_sub(covid$cama, 1,1) == "5" ~ "HLM",
+    T ~ covid$cama
+  ))
