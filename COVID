@@ -1,0 +1,100 @@
+## PACIENTES COVID INGRESADOS QUE NO SE MANTIENEN EN CENSO INGRESADOS
+
+ALTA, EXITUS
+
+```{r}
+covid %>% 
+  filter(!(nuhsa %in% censo_hoy$nuhsa)) %>% 
+  select(nuhsa,apellidos_nombre, cama, situacion) %>% 
+  datatable()
+```
+
+
+## PACIENTES AISLADOS DE GOTITAS EN CENSO Y NO SE ENCUENTRAN EN REGISTRO COVID NI AISLAMIENTOS
+
+NUEVOS INGRESADOS, NUEVOS AISLAMIENTOS
+
+```{r}
+censo_hoy_aislados %>% 
+  filter(!(nuhsa %in% covid$nuhsa),
+         tipo_aisla == "Gotitas",
+         !(nhc %in% aislamientos$nhc)) %>%   
+  select(apellidos, nombre, ubic, nhc, nuhsa, tipo_aisla, f_ingreso, uf_resp_n1) %>%
+  arrange(desc(f_ingreso)) %>%
+  datatable()
+```
+
+## PACIENTES NUEVOS EN CAMAS COVID (PLANTA COVID) NO AISLADOS DE GOTITAS
+```{r}
+censo_hoy %>%
+  filter(!(nuhsa %in% covid$nuhsa),
+         tipo_aisla != "Gotitas",
+         ubic %in% planta_covid) %>% 
+  select(apellidos, nombre, ubic, nhc, nuhsa, tipo_aisla, f_ingreso) %>% 
+  arrange(desc(f_ingreso)) %>% 
+  datatable()
+```
+
+## PACIENTES NUEVOS EN CAMAS UCI COVID (CAMAS MODULO 70 Y 80 UCIA) NO AISLADOS DE GOTITAS
+
+```{r}
+censo_hoy %>%
+  filter(!(nuhsa %in% covid$nuhsa),
+         ubic %in% camas_uci_covid,
+        tipo_aisla != "Gotitas") %>% 
+  select(apellidos, nombre, ubic, nhc, nuhsa, tipo_aisla, f_ingreso, uf_resp_n1) %>% 
+  arrange(desc(f_ingreso)) %>% 
+  datatable()
+```
+
+
+## PACIENTES NUEVOS EN CAMAS COVID (CAMAS COVID TIC) NO AISLADOS DE GOTITAS
+
+```{r}
+censo_hoy %>%
+  filter(!(nuhsa %in% covid$nuhsa),
+         ubic %in% camas_tic,
+        tipo_aisla != "Gotitas") %>% 
+  select(apellidos, nombre, ubic, nhc, nuhsa, tipo_aisla, f_ingreso, uf_resp_n1) %>%
+  arrange(desc(f_ingreso)) %>%
+  datatable()
+```
+
+
+## CAMBIOS DE CAMA EN PACIENTES REGISTRO COVID
+```{r}
+covid_camas <- covid %>% 
+  select(nuhsa, cama, situacion, apellidos_nombre) %>% 
+  rename(antigua_hab = cama)
+
+censo_camas <- censo_hoy %>% 
+  filter(nuhsa %in% covid$nuhsa) %>% 
+  select(nuhsa, nhc, ubic) %>% 
+  rename(nueva_hab = ubic)
+
+fusion_camas <- covid_camas %>% 
+  full_join(censo_camas, by = "nuhsa") %>% 
+  select(apellidos_nombre, nuhsa, nhc, antigua_hab, nueva_hab, situacion) %>% 
+  mutate(comparacion = case_when(
+    antigua_hab == nueva_hab ~ "IGUALES" ,
+    TRUE ~ "DIFERENTES"
+  ))
+
+fusion_camas %>% 
+  filter(comparacion == "DIFERENTES") %>% 
+  filter(!(is.na(nueva_hab))) %>% 
+  datatable()
+
+```
+
+
+## TABLA RESUMEN PREVENTIVA COVID
+
+```{r}
+covid %>% 
+  tabyl(situacion, hospital) %>% 
+  adorn_totals(where = c("row", "col")) %>% 
+  kable()
+
+
+```
