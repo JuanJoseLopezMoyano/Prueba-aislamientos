@@ -1,0 +1,102 @@
+## AISLADOS AYER Y NO SE MANTIENEN EN CENSO AISLADOS PERO SIGUEN INGRESADOS
+
+RETIRADA AISLAMIENTO O NO NOTIFICADOS A ADMISIÓN
+
+```{r}
+aislamientos %>% 
+  filter(!(nhc %in% censo_hoy_aislados$nhc)
+         & nhc %in% censo_hoy$nhc) %>% 
+  select(hab, hosp, planta, fecha, nhc, apellidos_nombre, aislamiento, microorganismo) %>% 
+  datatable()
+
+```
+
+
+## AISLADOS AYER Y NO SE MANTIENEN EN CENSO AISLADOS NI INGRESADOS
+
+ALTA, EXITUS
+
+```{r}
+aislamientos %>% 
+  filter(!(nhc %in% censo_hoy$nhc)) %>% 
+  select(hab, hosp, planta, fecha, nhc, apellidos_nombre, aislamiento, microorganismo, situacion) %>% 
+  datatable()
+
+```
+
+
+
+## NUEVOS AISLADOS EN CENSO Y NO EN AISLAMIENTOS PREVENTIVA y NO en REGISTRO PREVENTIVA
+
+NUEVOS INGRESADOS, NUEVOS AISLAMIENTOS
+
+```{r}
+fusion_camas2 <- fusion_camas %>% 
+  filter(situacion != "RESUELTA")
+  
+
+censo_hoy_aislados %>% 
+  filter(!(nhc %in% aislamientos$nhc)) %>%   
+  filter(!(nhc %in% fusion_camas2$nhc)) %>% 
+  select(apellidos, nombre, ubic, nhc, tipo_aisla, f_ingreso) %>% 
+  datatable()
+```
+
+
+## CAMBIOS DE CAMA EN PACIENTES AISLAMIENTOS
+```{r}
+aislamientos_camas <- aislamientos %>% 
+  select(nhc, hab, situacion, apellidos_nombre) %>% 
+  rename(antigua_hab = hab)
+
+censo_camas <- censo_hoy %>% 
+  filter(nhc %in% aislamientos$nhc) %>% 
+  select(nuhsa, nhc, ubic) %>% 
+  rename(nueva_hab = ubic)
+
+fusion_camas <- aislamientos_camas %>% 
+  full_join(censo_camas, by = "nhc") %>% 
+  select(apellidos_nombre, nhc, antigua_hab, nueva_hab, situacion) %>% 
+  mutate(comparacion = case_when(
+    antigua_hab == nueva_hab ~ "IGUALES" ,
+    TRUE ~ "DIFERENTES"
+  ))
+
+fusion_camas %>% 
+  filter(comparacion == "DIFERENTES") %>% 
+  filter(!(is.na(nueva_hab))) %>% 
+  datatable()
+
+```
+
+#### CAMBIOS AISLAMIENTOS####
+```{r}
+aislamientos_ais <- aislamientos %>%
+  select(nhc, hab, situacion, apellidos_nombre, aislamiento) %>%
+  rename(antiguo = aislamiento)
+
+aislamientos_ais$antiguo <- str_to_lower(aislamientos_ais$antiguo, locale = "es")
+aislamientos_ais$antiguo <- chartr('áéíóúñ','aeioun',aislamientos_ais$antiguo)
+
+censo_ais <- censo_hoy_aislados %>%
+  filter(nhc %in% aislamientos$nhc) %>%
+  select(nuhsa, nhc, ubic, tipo_aisla) %>%
+  rename(nuevo_aislamiento = tipo_aisla)
+
+censo_ais$nuevo_aislamiento <- str_to_lower(censo_ais$nuevo_aislamiento, locale = "es") 
+censo_ais$nuevo_aislamiento <- chartr('áéíóúñ','aeioun' ,censo_ais$nuevo_aislamiento) 
+
+fusion_aislamientos <- aislamientos_ais %>% 
+  full_join(censo_ais, by = "nhc") %>% 
+  select(apellidos_nombre, nhc, antiguo, nuevo_aislamiento, situacion) %>% 
+  mutate(comparacion = case_when(
+    antiguo == nuevo_aislamiento ~ "IGUALES" ,
+    TRUE ~ "DIFERENTES"
+  ))
+
+fusion_aislamientos %>%
+  filter(comparacion == "DIFERENTES") %>%
+  datatable()
+  
+
+```
